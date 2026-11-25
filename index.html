@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEP Pass Counter</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b3d91">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1c2430;--mute:#6b7685;--line:#dfe3e8;--brand:#0b3d91;
+--green:#1e8e3e;--greenbg:#e3f5e8;--red:#c5221f;--redbg:#fde6e5;--amber:#9a6700;--amberbg:#fff4d6;--blue:#0b3d91}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--brand);color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+header h1{font-size:17px;margin:0}
+#clock{font-variant-numeric:tabular-nums;font-size:14px;opacity:.95}
+nav{display:flex;background:#fff;border-bottom:1px solid var(--line)}
+nav button{flex:1;padding:12px;border:0;background:none;font-size:15px;font-weight:600;color:var(--mute);border-bottom:3px solid transparent;cursor:pointer}
+nav button.on{color:var(--brand);border-color:var(--brand)}
+main{padding:12px;max-width:1200px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.scanrow{display:flex;gap:8px;flex-wrap:wrap}
+.scanrow input{flex:1;min-width:180px;font-size:18px;padding:12px;border:2px solid var(--brand);border-radius:8px}
+button.btn{padding:11px 16px;border:0;border-radius:8px;background:var(--brand);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+button.btn.sec{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+button.btn.danger{background:#fff;color:var(--red);border:1px solid var(--red)}
+button.btn.sm{padding:7px 11px;font-size:13px}
+#cam{display:none;margin-top:10px}
+#cam video{width:100%;max-width:420px;border-radius:8px;background:#000}
+#banner{display:none;margin-top:10px;padding:14px;border-radius:8px;font-size:17px;font-weight:600}
+#banner small{display:block;font-weight:400;font-size:14px;margin-top:3px}
+#banner.in{background:var(--amberbg);color:var(--amber)}
+#banner.ok{background:var(--greenbg);color:var(--green)}
+#banner.bad{background:var(--redbg);color:var(--red)}
+#banner.warn{background:#eef1f5;color:var(--ink)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.chip{padding:6px 12px;border-radius:20px;font-weight:600;font-size:14px;background:#eef1f5;cursor:pointer;border:2px solid transparent}
+.chip.on{border-color:var(--brand)}
+.chip.red{background:var(--redbg);color:var(--red)}
+.chip.amber{background:var(--amberbg);color:var(--amber)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.tools input[type=search]{flex:1;min-width:160px;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:15px}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+th{background:#eef1f5;text-align:left;padding:8px;position:sticky;top:0;white-space:nowrap}
+td{padding:8px;border-top:1px solid var(--line);white-space:nowrap}
+tr.r-out td{background:var(--amberbg)}
+tr.r-over td,tr.r-late td{background:var(--redbg)}
+tr.r-ok td{background:var(--greenbg)}
+td.st{font-weight:700;font-variant-numeric:tabular-nums}
+tr.r-out td.st{color:var(--amber)}
+tr.r-over td.st,tr.r-late td.st{color:var(--red)}
+tr.r-ok td.st{color:var(--green)}
+.empty{padding:18px;text-align:center;color:var(--mute)}
+h2{font-size:16px;margin:0 0 8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.note{color:var(--mute);font-size:13px}
+label.f{font-weight:600}
+input[type=number]{width:80px;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:15px}
+</style>
+</head>
+<body>
+<header><h1>AEP Pass Counter</h1><div id="clock"></div></header>
+<nav><button id="t1" class="on">Counter</button><button id="t2">Staff &amp; Settings</button></nav>
+<main>
+
+<section id="v1">
+  <div class="card">
+    <div class="scanrow">
+      <input id="scan" type="text" placeholder="Scan QR here, or type pass number and press Enter" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <button class="btn" id="go">Submit</button>
+      <button class="btn sec" id="camBtn">Camera</button>
+    </div>
+    <div id="cam"><video id="video" playsinline muted></video><div class="note" id="camMsg"></div></div>
+    <div id="banner"></div>
+    <div class="row" style="margin-top:10px"><button class="btn sec sm" id="undo">Undo last scan</button><span class="note" id="undoNote"></span></div>
+  </div>
+
+  <div class="card">
+    <div class="chips" id="chips"></div>
+    <div class="tools">
+      <input type="search" id="q" placeholder="Search name, pass or ID">
+      <button class="btn sec sm" id="exp">Download Excel (CSV)</button>
+    </div>
+    <div class="wrap"><table>
+      <thead><tr><th>Date</th><th>Pass</th><th>Emp ID</th><th>Name</th><th>Designation</th><th>Time In</th><th>Due Back By</th><th>Time Out</th><th>Status</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+    <div class="empty" id="none" style="display:none">No entries yet. Scan a pass to start.</div>
+  </div>
+</section>
+
+<section id="v2" style="display:none">
+  <div class="card">
+    <h2>Return limit</h2>
+    <div class="row"><label class="f" for="lim">Hours allowed:</label><input type="number" id="lim" min="1" max="72" step="0.5"><button class="btn sm" id="limSave">Save</button></div>
+    <div class="note">Applies to new Time In scans. Entries already out keep the limit they were given.</div>
+  </div>
+  <div class="card">
+    <h2>Staff list (<span id="cnt"></span>)</h2>
+    <div class="row">
+      <input type="file" id="file" accept=".csv,text/csv" style="display:none">
+      <button class="btn sm" id="imp">Import staff CSV</button>
+      <button class="btn sec sm" id="tpl">Download blank template</button>
+      <button class="btn sec sm" id="staffExp">Download current list</button>
+    </div>
+    <div class="note" style="margin-bottom:8px">In Excel use File &gt; Save As &gt; CSV. Columns: NAME, DESIGNATION, EMPLOYEE ID, PASS ID. Importing replaces the whole list.</div>
+    <div class="tools"><input type="search" id="sq" placeholder="Search staff"></div>
+    <div class="wrap"><table style="min-width:520px"><thead><tr><th>Pass</th><th>Emp ID</th><th>Name</th><th>Designation</th></tr></thead><tbody id="srows"></tbody></table></div>
+  </div>
+  <div class="card">
+    <h2>Backup &amp; reset</h2>
+    <div class="note" style="margin-bottom:8px">Data is saved in this browser on this device. Download a backup every day.</div>
+    <div class="row">
+      <button class="btn sec sm" id="bk">Download backup</button>
+      <input type="file" id="rfile" accept=".json,application/json" style="display:none">
+      <button class="btn sec sm" id="rs">Restore backup</button>
+      <button class="btn danger sm" id="clr">Clear time sheet</button>
+      <button class="btn danger sm" id="dflt">Reset to 10 test staff</button>
+    </div>
+  </div>
+</section>
+
+</main>
+<script>
+(function(){
+'use strict';
+var DEFAULT_STAFF=[
+{pass:"SA02",empId:"101",name:"Neenad",desig:"SA"},
+{pass:"SA03",empId:"102",name:"Mangesh",desig:"SA"},
+{pass:"SA01",empId:"6967",name:"Rohan",desig:"SR SA"},
+{pass:"UH71",empId:"69",name:"Subodh",desig:"UH"},
+{pass:"PSE 121",empId:"4004",name:"Sanket",desig:"PSE"},
+{pass:"UH 101",empId:"105",name:"Kamalesh",desig:"UH"},
+{pass:"TL 69",empId:"10101",name:"Shubham",desig:"RAMP TL"},
+{pass:"DO69",empId:"1010110",name:"Rama",desig:"DUTY OFFICER"},
+{pass:"TL 49",empId:"696978",name:"Omkar",desig:"PSE TL"},
+{pass:"TE 50",empId:"10101010100",name:"Popat",desig:"TECHNICAL"}
+];
+var $=function(s){return document.querySelector(s)};
+function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(){try{localStorage.setItem('aep_staff',JSON.stringify(S.staff));localStorage.setItem('aep_log',JSON.stringify(S.log));localStorage.setItem('aep_limit',JSON.stringify(S.limit));localStorage.setItem('aep_last',JSON.stringify(S.last))}catch(e){alert('This browser cannot save data. Do not use private/incognito mode.')}}
+var S={staff:load('aep_staff',null)||DEFAULT_STAFF.slice(),log:load('aep_log',[]),limit:load('aep_limit',15),last:load('aep_last',null),view:'all',q:''};
+var lastScan={};
+function key(p){return String(p).replace(/\s+/g,'').toUpperCase()}
+function pad(n){return n<10?'0'+n:''+n}
+function fT(ms){var d=new Date(ms);return pad(d.getHours())+':'+pad(d.getMinutes())}
+function fD(ms){var d=new Date(ms);return pad(d.getDate())+'-'+pad(d.getMonth()+1)+'-'+d.getFullYear()}
+function fDue(e){var s=fT(e.due);return fD(e.due)!==fD(e.tin)?s+' ('+fD(e.due).slice(0,5)+')':s}
+function fOut(e){if(!e.tout)return '';var s=fT(e.tout);return fD(e.tout)!==fD(e.tin)?s+' ('+fD(e.tout).slice(0,5)+')':s}
+function hms(ms){ms=Math.abs(ms);var t=Math.floor(ms/1000),h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;return pad(h)+':'+pad(m)+':'+pad(s)}
+function hm(ms){ms=Math.abs(ms);var t=Math.floor(ms/60000),h=Math.floor(t/60),m=t%60;return h+'h '+pad(m)+'m'}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+
+function status(e,now){
+  if(!e.tout){
+    if(now<e.due)return{c:'r-out',t:'OUT  '+hms(e.due-now)+' left',k:'out'};
+    return{c:'r-over',t:'OVERDUE  +'+hms(now-e.due),k:'over'};
+  }
+  if(e.tout<=e.due)return{c:'r-ok',t:'RETURNED ON TIME',k:'ok'};
+  return{c:'r-late',t:'RETURNED LATE  +'+hm(e.tout-e.due),k:'late'};
+}
+
+/* sound */
+var AC=null;
+function beep(good){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();var o=AC.createOscillator(),g=AC.createGain();o.connect(g);g.connect(AC.destination);o.frequency.value=good?880:220;g.gain.value=.15;o.start();o.stop(AC.currentTime+(good?.12:.35))}catch(e){}}
+
+function banner(cls,main,sub){var b=$('#banner');b.className=cls;b.style.display='block';b.innerHTML=esc(main)+(sub?'<small>'+esc(sub)+'</small>':'')}
+
+function handleScan(raw){
+  raw=String(raw||'').trim();if(!raw)return;
+  var pass=raw,parts=raw.split('|');
+  if(parts.length>=2&&parts[0].toUpperCase()==='AEP')pass=parts[1];
+  var k=key(pass),emp=null;
+  for(var i=0;i<S.staff.length;i++){if(key(S.staff[i].pass)===k){emp=S.staff[i];break}}
+  if(!emp){banner('bad','PASS NOT FOUND','"'+pass+'" is not in the staff list.');beep(false);return}
+  var now=Date.now();
+  if(lastScan[k]&&now-lastScan[k]<5000){banner('warn','ALREADY SCANNED','Wait a few seconds before scanning the same pass again.');return}
+  lastScan[k]=now;
+  var open=null;
+  for(var j=S.log.length-1;j>=0;j--){if(key(S.log[j].pass)===k&&!S.log[j].tout){open=S.log[j];break}}
+  if(open){
+    open.tout=now;S.last={type:'out',id:open.id};
+    var late=now>open.due;
+    banner(late?'bad':'ok','TIME OUT  '+emp.name+'  ('+emp.pass+')',(late?'Returned LATE by '+hm(now-open.due):'Returned on time')+' at '+fT(now));
+    beep(!late);
+  }else{
+    var e={id:now+'-'+Math.random().toString(36).slice(2,6),pass:emp.pass,empId:emp.empId,name:emp.name,desig:emp.desig,tin:now,due:now+S.limit*3600000,tout:null};
+    S.log.push(e);S.last={type:'in',id:e.id};
+    banner('in','TIME IN  '+emp.name+'  ('+emp.pass+')','Time in '+fT(now)+'. Must return by '+fDue(e)+'.');
+    beep(true);
+  }
+  save();renderAll();
+}
+
+function undo(){
+  var l=S.last;if(!l){banner('warn','NOTHING TO UNDO','');return}
+  if(l.type==='in'){S.log=S.log.filter(function(e){return e.id!==l.id})}
+  else{S.log.forEach(function(e){if(e.id===l.id)e.tout=null})}
+  S.last=null;lastScan={};save();renderAll();banner('warn','Last scan undone','');
+}
+
+function filtered(){
+  var now=Date.now(),today=fD(now),q=S.q.trim().toLowerCase();
+  return S.log.slice().sort(function(a,b){return b.tin-a.tin}).filter(function(e){
+    if(q&&(e.name+' '+e.pass+' '+e.empId).toLowerCase().indexOf(q)<0)return false;
+    var st=status(e,now).k;
+    if(S.view==='out')return !e.tout;
+    if(S.view==='over')return st==='over'||st==='late';
+    if(S.view==='today')return fD(e.tin)===today;
+    return true;
+  });
+}
+
+function renderChips(){
+  var now=Date.now(),out=0,over=0,lateRet=0;
+  S.log.forEach(function(e){var k=status(e,now).k;if(k==='out')out++;if(k==='over')over++;if(k==='late')lateRet++});
+  var defs=[['all','All ('+S.log.length+')',''],['out','Pass out ('+(out+over)+')','amber'],['over','Overdue / late ('+(over+lateRet)+')','red'],['today','Today','']];
+  $('#chips').innerHTML=defs.map(function(d){return '<span class="chip '+d[2]+(S.view===d[0]?' on':'')+'" data-v="'+d[0]+'">'+d[1]+'</span>'}).join('');
+}
+
+function renderRows(){
+  var rows=filtered(),now=Date.now();
+  $('#none').style.display=S.log.length?'none':'block';
+  $('#rows').innerHTML=rows.map(function(e){
+    var st=status(e,now);
+    return '<tr class="'+st.c+'" data-id="'+e.id+'"><td>'+fD(e.tin)+'</td><td>'+esc(e.pass)+'</td><td>'+esc(e.empId)+'</td><td>'+esc(e.name)+'</td><td>'+esc(e.desig)+'</td><td>'+fT(e.tin)+'</td><td>'+fDue(e)+'</td><td>'+fOut(e)+'</td><td class="st">'+st.t+'</td></tr>';
+  }).join('');
+}
+
+function renderStaff(){
+  var q=($('#sq').value||'').toLowerCase();
+  $('#cnt').textContent=S.staff.length;
+  $('#srows').innerHTML=S.staff.filter(function(s){return !q||(s.name+' '+s.pass+' '+s.empId+' '+s.desig).toLowerCase().indexOf(q)>=0}).slice(0,300).map(function(s){
+    return '<tr><td>'+esc(s.pass)+'</td><td>'+esc(s.empId)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.desig)+'</td></tr>'}).join('');
+}
+
+function renderAll(){renderChips();renderRows();renderStaff();$('#lim').value=S.limit;$('#undoNote').textContent=S.last?'':''}
+
+/* live tick: update clock and countdown cells */
+function tick(){
+  var now=Date.now(),d=new Date(now);
+  $('#clock').textContent=fD(now)+'  '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  var trs=document.querySelectorAll('#rows tr'),changed=false;
+  for(var i=0;i<trs.length;i++){
+    var tr=trs[i],e=null;
+    for(var j=0;j<S.log.length;j++){if(S.log[j].id===tr.getAttribute('data-id')){e=S.log[j];break}}
+    if(!e||e.tout)continue;
+    var st=status(e,now);
+    if(tr.className!==st.c){tr.className=st.c;changed=true}
+    tr.lastChild.textContent=st.t;
+  }
+  if(changed)renderChips();
+}
+
+/* CSV helpers */
+function csvCell(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function download(name,text,type){var b=new Blob(['﻿'+text],{type:type||'text/csv;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500)}
+function parseCSV(t){
+  var rows=[],r=[],c='',q=false;t=t.replace(/^﻿/,'');
+  for(var i=0;i<t.length;i++){var ch=t[i];
+    if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
+    else if(ch==='"')q=true;
+    else if(ch===','||ch===';'||ch==='\t'){r.push(c);c=''}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;r.push(c);c='';if(r.some(function(x){return x.trim()}))rows.push(r);r=[]}
+    else c+=ch}
+  r.push(c);if(r.some(function(x){return x.trim()}))rows.push(r);return rows;
+}
+function exportLog(){
+  var now=Date.now(),head=['Date','Pass','Emp ID','Name','Designation','Time In','Due Back By','Time Out','Status'];
+  var lines=[head.join(',')];
+  S.log.slice().sort(function(a,b){return a.tin-b.tin}).forEach(function(e){
+    var st=status(e,now);var label=st.k==='out'?'OUT':st.k==='over'?'OVERDUE':st.k==='ok'?'RETURNED ON TIME':'RETURNED LATE';
+    lines.push([fD(e.tin),e.pass,'="'+e.empId+'"',e.name,e.desig,fT(e.tin),fD(e.due)+' '+fT(e.due),e.tout?fD(e.tout)+' '+fT(e.tout):'',label].map(csvCell).join(','));
+  });
+  download('AEP_TimeSheet_'+fD(now)+'.csv',lines.join('\r\n'));
+}
+function importStaff(text){
+  var rows=parseCSV(text);if(rows.length<2){alert('File is empty.');return}
+  var h=rows[0].map(function(x){return x.trim().toLowerCase()}),ix={pass:-1,name:-1,desig:-1,id:-1};
+  h.forEach(function(x,i){
+    if(x.indexOf('pass')>=0)ix.pass=i;
+    else if(x.indexOf('desig')>=0)ix.desig=i;
+    else if(x.indexOf('name')>=0)ix.name=i;
+    else if(x.indexOf('id')>=0||x.indexOf('emp')>=0)ix.id=i;
+  });
+  if(ix.pass<0||ix.name<0){alert('Could not find PASS and NAME columns in the first row.');return}
+  var seen={},out=[],dup=[];
+  for(var i=1;i<rows.length;i++){
+    var r=rows[i],p=(r[ix.pass]||'').trim();if(!p)continue;
+    var k=key(p);if(seen[k]){dup.push(p);continue}seen[k]=1;
+    out.push({pass:p.replace(/\s+/g,' '),empId:ix.id>=0?(r[ix.id]||'').trim():'',name:(r[ix.name]||'').trim(),desig:ix.desig>=0?(r[ix.desig]||'').trim():''});
+  }
+  if(!out.length){alert('No staff rows found.');return}
+  if(!confirm('Replace the staff list with '+out.length+' people from this file?'+(dup.length?'\n\nDuplicate pass numbers skipped: '+dup.join(', '):'')))return;
+  S.staff=out;save();renderAll();
+}
+
+/* camera */
+var stream=null,scanning=false,camCool={v:'',t:0};
+function stopCam(){scanning=false;if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}$('#cam').style.display='none';$('#camBtn').textContent='Camera'}
+function startCam(){
+  var msg=$('#camMsg');$('#cam').style.display='block';msg.textContent='';
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){msg.textContent='Camera is not available here. The page must be opened over HTTPS (or as a local file in Chrome).';return}
+  if(!('BarcodeDetector' in window)){msg.textContent='This browser cannot read QR codes from the camera. Use Chrome or Edge, or a USB barcode scanner, or type the pass number.';return}
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false}).then(function(s){
+    stream=s;var v=$('#video');v.srcObject=s;v.play();$('#camBtn').textContent='Stop camera';scanning=true;
+    var det=new BarcodeDetector({formats:['qr_code']});
+    (function loop(){
+      if(!scanning)return;
+      det.detect(v).then(function(codes){
+        if(codes&&codes.length){var val=codes[0].rawValue,n=Date.now();
+          if(!(camCool.v===val&&n-camCool.t<3000)){camCool={v:val,t:n};handleScan(val)}}
+      }).catch(function(){}).then(function(){setTimeout(loop,200)});
+    })();
+  }).catch(function(err){msg.textContent='Camera blocked or not found ('+err.name+'). Allow camera access in the browser and try again.'});
+}
+
+/* wiring */
+$('#t1').onclick=function(){$('#v1').style.display='';$('#v2').style.display='none';$('#t1').className='on';$('#t2').className=''};
+$('#t2').onclick=function(){$('#v1').style.display='none';$('#v2').style.display='';$('#t2').className='on';$('#t1').className='';renderStaff()};
+function submit(){var i=$('#scan');var v=i.value;i.value='';handleScan(v);if(matchMedia('(pointer:fine)').matches)i.focus()}
+$('#scan').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();submit()}});
+$('#go').onclick=submit;
+$('#camBtn').onclick=function(){if(scanning)stopCam();else startCam()};
+$('#undo').onclick=undo;
+$('#q').oninput=function(){S.q=this.value;renderRows()};
+$('#chips').onclick=function(e){var v=e.target.getAttribute('data-v');if(v){S.view=v;renderChips();renderRows()}};
+$('#exp').onclick=exportLog;
+$('#sq').oninput=renderStaff;
+$('#limSave').onclick=function(){var v=parseFloat($('#lim').value);if(!(v>0&&v<=72)){alert('Enter hours between 1 and 72.');return}S.limit=v;save();alert('Return limit set to '+v+' hours.')};
+$('#imp').onclick=function(){$('#file').click()};
+$('#file').onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){importStaff(String(r.result))};r.readAsText(f);this.value=''};
+$('#tpl').onclick=function(){download('Staff_Template.csv','NAME,DESIGNATION,EMPLOYEE ID,PASS ID\r\n')};
+$('#staffExp').onclick=function(){download('Staff_List.csv',['NAME,DESIGNATION,EMPLOYEE ID,PASS ID'].concat(S.staff.map(function(s){return [s.name,s.desig,s.empId,s.pass].map(csvCell).join(',')})).join('\r\n'))};
+$('#bk').onclick=function(){download('AEP_Backup_'+fD(Date.now())+'.json',JSON.stringify({staff:S.staff,log:S.log,limit:S.limit}),'application/json')};
+$('#rs').onclick=function(){$('#rfile').click()};
+$('#rfile').onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(String(r.result).replace(/^﻿/,''));if(!d.staff||!d.log)throw 0;if(!confirm('Replace ALL current data with this backup?'))return;S.staff=d.staff;S.log=d.log;S.limit=d.limit||15;S.last=null;save();renderAll()}catch(e){alert('Not a valid backup file.')}};r.readAsText(f);this.value=''};
+$('#clr').onclick=function(){if(confirm('Delete the entire time sheet? Download a backup first.')&&confirm('Really delete all '+S.log.length+' entries?')){S.log=[];S.last=null;save();renderAll()}};
+$('#dflt').onclick=function(){if(confirm('Replace the staff list with the 10 test staff?')){S.staff=DEFAULT_STAFF.slice();save();renderAll()}};
+
+window.AEP={S:S,handleScan:handleScan,renderAll:renderAll,tick:tick,save:save,undo:undo,status:status};
+renderAll();tick();setInterval(tick,1000);
+if(matchMedia('(pointer:fine)').matches)$('#scan').focus();
+})();
+</script>
+<script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});</script>
+</body>
+</html>
